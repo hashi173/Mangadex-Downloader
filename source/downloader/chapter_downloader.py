@@ -275,7 +275,7 @@ class ChapterDownloader:
             elapsed_time = time.time() - retry_start_time
             if elapsed_time > self.retry_timeout:
                 print(f"\n⏱️  Retry timeout ({self.retry_timeout}s) reached, stopping retries")
-                # Re-add remaining files to failed list (current file onwards)
+                # Re-add remaining files to failed list (including current item being processed)
                 # idx is 1-based, so current item is at index idx-1
                 self.failed_downloads.extend(retry_list[idx-1:])
                 break
@@ -345,7 +345,7 @@ class ChapterDownloader:
 
             with zipfile.ZipFile(output_cbz_path, 'w', zipfile.ZIP_DEFLATED) as cbz:
                 image_files = sorted([f for f in os.listdir(chapter_path)
-                                      if f.lower().endswith(('.jpg', '.jpeg', '.png', '. webp'))])
+                                      if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
 
                 for img_file in image_files:
                     img_path = os.path.join(chapter_path, img_file)

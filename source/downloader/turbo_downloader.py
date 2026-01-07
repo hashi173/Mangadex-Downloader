@@ -374,7 +374,7 @@ class TurboDownloader:
             elapsed_time = time.time() - retry_start_time
             if elapsed_time > self.retry_timeout:
                 print(f"\n⏱️  Retry timeout ({self.retry_timeout}s) reached, stopping retries")
-                # Re-add remaining files to failed list (current file onwards)
+                # Re-add remaining files to failed list (including current item being processed)
                 for remaining_item in retry_tasks[idx:]:
                     self.failed_downloads.append(remaining_item)
                 break
@@ -421,7 +421,7 @@ class TurboDownloader:
 
             with zipfile.ZipFile(output_cbz_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as cbz:
                 image_files = sorted([f for f in os.listdir(chapter_path)
-                                      if f.lower().endswith(('.jpg', '. jpeg', '.png', '.webp'))])
+                                      if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
 
                 for img_file in image_files:
                     img_path = os.path.join(chapter_path, img_file)
