@@ -838,6 +838,20 @@ class MainWindow:
                     self.root.after(0, lambda: self.chapter_progress. config(value=ch_percent))
                     self.root.after(0, lambda: self.page_progress. config(value=0))
 
+                elif status == "retrying":
+                    self.root.after(0, lambda: self.status_label.config(text="Retrying failed files..."))
+                    self.root.after(0, lambda: self.page_progress_label.config(text="Retrying..."))
+
+                elif status.startswith("retry_attempt_"):
+                    # Extract retry attempt number from status like "retry_attempt_1"
+                    attempt = status.split("_")[-1]
+                    self.root.after(0, lambda a=attempt: self.status_label.config(text=f"Retry #{a}..."))
+                    if len(args) >= 1:
+                        # Show progress if available
+                        pg_num = ch_idx
+                        total_pg = total_ch
+                        self.root.after(0, lambda: self.page_progress_label.config(text=f"Retry {pg_num}/{total_pg}"))
+
             output_dir = self.output_entry.get().strip()
             cbz_per = self.cbz_per_chapter_var.get()
             pdf_per = self.pdf_per_chapter_var.get()
