@@ -172,7 +172,7 @@ class MangaDexAPI:
             else:
                 # FIXED: Remove spaces - use proper format
                 # Format: filename.quality.jpg (NO spaces)
-                url = f"https://uploads.mangadex.org/covers/{manga_id}/{cover_filename}. {quality}.jpg"
+                url = f"https://uploads.mangadex.org/covers/{manga_id}/{cover_filename}.{quality}.jpg"
 
             print(f"📥 Fetching cover:  {url}")
 

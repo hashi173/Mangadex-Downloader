@@ -7,7 +7,7 @@ print("🔨 Building with SPEC file...")
 
 # Clean
 for folder in ['build', 'dist']:
-    if os. path.exists(folder):
+    if os.path.exists(folder):
         shutil.rmtree(folder)
 
 # Build
@@ -20,6 +20,6 @@ PyInstaller.__main__.run([
 print("\n✅ Build complete!")
 
 exe_path = "dist/MangaDexDownloaderPro.exe"
-if os.path. exists(exe_path):
-    size_mb = os.path. getsize(exe_path) / (1024 * 1024)
+if os.path.exists(exe_path):
+    size_mb = os.path.getsize(exe_path) / (1024 * 1024)
     print(f"📦 Size:   {size_mb:.2f} MB")

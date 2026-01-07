@@ -217,17 +217,17 @@ class TurboDownloader:
 
             # FIXED: Get actual extension from URL
             # Extract extension from cover_url
-            url_path = cover_url.split('? ')[0]  # Remove query params
+            url_path = cover_url.split('?')[0]  # Remove query params
             ext = url_path.split('.')[-1].lower()
 
             # Validate extension
             if ext not in ['jpg', 'jpeg', 'png', 'webp', 'gif']:
                 # If extension invalid, try to detect from URL
-                if '. png' in cover_url.lower():
+                if '.png' in cover_url.lower():
                     ext = 'png'
                 elif '.jpg' in cover_url.lower() or '.jpeg' in cover_url.lower():
                     ext = 'jpg'
-                elif '. webp' in cover_url.lower():
+                elif '.webp' in cover_url.lower():
                     ext = 'webp'
                 else:
                     ext = 'jpg'  # Default fallback
@@ -293,7 +293,7 @@ class TurboDownloader:
                 # FIXED: Always use 2 digits minimum (01, 02, ...)
                 # Use 3 digits if more than 99 pages (001, 002, ...)
                 if total_pages < 100:
-                    page_filename = f"{i:02d}.{ext}"  # 01, 02, .. ., 99
+                    page_filename = f"{i:02d}.{ext}"  # 01, 02, ..., 99
                 elif total_pages < 1000:
                     page_filename = f"{i:03d}.{ext}"  # 001, 002, ..., 999
                 else:
@@ -439,7 +439,7 @@ class TurboDownloader:
             print(f"📄 Creating PDF: {os.path.basename(output_pdf_path)}")
 
             image_files = sorted([f for f in os.listdir(chapter_path)
-                                  if f.lower().endswith(('.jpg', '.jpeg', '.png', '. webp'))])
+                                  if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
 
             if not image_files:
                 return False
@@ -663,7 +663,7 @@ class TurboDownloader:
         print(f"\n{'=' * 60}")
         print(f"✅ TURBO Download Complete!")
         print(f"   📊 Total:  {total_mb:.2f} MB")
-        print(f"   ⚡ Avg Speed: {avg_speed:. 2f} MB/s")
+        print(f"   ⚡ Avg Speed: {avg_speed:.2f} MB/s")
         print(f"   ⏱️ Time: {int(total_time)}s")
         if self.failed_downloads:
             print(f"   ⚠️ Failed: {len(self.failed_downloads)} files")
