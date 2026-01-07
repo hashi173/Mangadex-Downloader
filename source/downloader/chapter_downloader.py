@@ -362,7 +362,7 @@ class ChapterDownloader:
             print(f"📄 Creating PDF: {os.path.basename(output_pdf_path)}")
 
             image_files = sorted([f for f in os.listdir(chapter_path)
-                                  if f.lower().endswith(('.jpg', '.jpeg', '.png', '. webp'))])
+                                  if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
 
             if not image_files:
                 return False
@@ -386,7 +386,7 @@ class ChapterDownloader:
                 elif img.mode != 'RGB':
                     img = img.convert('RGB')
 
-                temp_jpg = img_path.rsplit('. ', 1)[0] + '_temp.jpg'
+                temp_jpg = img_path.rsplit('.', 1)[0] + '_temp.jpg'
                 img.save(temp_jpg, 'JPEG', quality=95)
 
                 img_width, img_height = img.size

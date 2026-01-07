@@ -5,9 +5,9 @@ import os
 import sys
 from PIL import Image, ImageTk
 
-sys.path.append(os.path.dirname(os. path.dirname(os.path. abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from api. mangadex_api import MangaDexAPI
+from api.mangadex_api import MangaDexAPI
 from downloader.turbo_downloader import TurboDownloader
 
 
@@ -19,7 +19,7 @@ class ModernButton(tk.Canvas):
                          highlightthickness=0, cursor='hand2')
 
         self.bg = bg
-        self.hover_bg = self. lighten_color(bg, 1.15)
+        self.hover_bg = self.lighten_color(bg, 1.15)
         self.command = command
         self.text = text
         self.enabled = True
@@ -61,11 +61,11 @@ class ModernButton(tk.Canvas):
 
     def on_enter(self, e):
         if self.enabled:
-            self. itemconfig('main', fill=self.hover_bg)
+            self.itemconfig('main', fill=self.hover_bg)
 
     def on_leave(self, e):
         if self.enabled:
-            self. itemconfig('main', fill=self.bg)
+            self.itemconfig('main', fill=self.bg)
 
     def on_click(self, e):
         if self.enabled and self.command:
@@ -74,10 +74,10 @@ class ModernButton(tk.Canvas):
     def set_state(self, state):
         self.enabled = (state == 'normal')
         if self.enabled:
-            self.itemconfig('main', fill=self. bg)
+            self.itemconfig('main', fill=self.bg)
             self.itemconfig('text', fill='white')
         else:
-            self. itemconfig('main', fill='#CBD5E1')
+            self.itemconfig('main', fill='#CBD5E1')
             self.itemconfig('text', fill='#94A3B8')
 
 
