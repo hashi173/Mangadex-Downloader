@@ -275,9 +275,9 @@ class ChapterDownloader:
             elapsed_time = time.time() - retry_start_time
             if elapsed_time > self.retry_timeout:
                 print(f"\n⏱️  Retry timeout ({self.retry_timeout}s) reached, stopping retries")
-                # Re-add remaining files to failed list
-                for remaining_idx in range(idx - 1, len(retry_list)):
-                    self.failed_downloads.append(retry_list[remaining_idx])
+                # Re-add remaining files to failed list (current file onwards)
+                # idx is 1-based, so current item is at index idx-1
+                self.failed_downloads.extend(retry_list[idx-1:])
                 break
             
             if self.is_stopped:

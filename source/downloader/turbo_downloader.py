@@ -374,9 +374,8 @@ class TurboDownloader:
             elapsed_time = time.time() - retry_start_time
             if elapsed_time > self.retry_timeout:
                 print(f"\n⏱️  Retry timeout ({self.retry_timeout}s) reached, stopping retries")
-                # Re-add remaining files to failed list
-                for remaining_idx in range(idx, len(download_tasks)):
-                    remaining_item = retry_tasks[remaining_idx]
+                # Re-add remaining files to failed list (current file onwards)
+                for remaining_item in retry_tasks[idx:]:
                     self.failed_downloads.append(remaining_item)
                 break
             
