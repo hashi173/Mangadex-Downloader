@@ -11,8 +11,17 @@ import io
 
 
 class ChapterDownloader:
-    def __init__(self, max_workers=3):
+    def __init__(self, max_workers=3, max_retry_attempts=3, retry_timeout=300):
+        """
+        Chapter downloader with retry limits
+        max_workers: Number of concurrent downloads (default: 3)
+        max_retry_attempts: Maximum number of retry attempts per file (default: 3)
+        retry_timeout: Maximum time in seconds for entire retry phase (default: 300 = 5 minutes)
+        """
         self.max_workers = max_workers
+        self.max_retry_attempts = max_retry_attempts
+        self.retry_timeout = retry_timeout
+        
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -23,8 +32,7 @@ class ChapterDownloader:
 
         # Error tracking
         self.failed_downloads = []
-        self.retry_count = 0
-        self.max_retries = 3
+        self.retry_counts = {}  # Track retry count per file
 
     def pause(self):
         self.is_paused = True
@@ -40,7 +48,7 @@ class ChapterDownloader:
         self.is_paused = False
         self.is_stopped = False
         self.failed_downloads = []
-        self.retry_count = 0
+        self.retry_counts = {}
 
     def check_pause(self):
         while self.is_paused and not self.is_stopped:
@@ -225,36 +233,82 @@ class ChapterDownloader:
             return False
 
     def retry_failed_downloads(self, progress_callback=None):
-        """Retry all failed downloads"""
+        """Retry all failed downloads with max attempts and timeout"""
         if not self.failed_downloads:
             return True
 
+        retry_start_time = time.time()
+
         print(f"\n{'=' * 60}")
-        print(f"🔄 Retrying {len(self.failed_downloads)} failed downloads...")
+        print(f"🔄 Retrying {len(self.failed_downloads)} failed downloads (max {self.max_retry_attempts} attempts)...")
         print(f"{'=' * 60}\n")
 
-        retry_list = self.failed_downloads.copy()
+        # Filter files that haven't exceeded max retry attempts
+        retry_list = []
+        permanently_failed = []
+        
+        for item in self.failed_downloads:
+            file_key = item['path']
+            current_retry_count = self.retry_counts.get(file_key, 0)
+            
+            if current_retry_count < self.max_retry_attempts:
+                # Still within retry limit
+                self.retry_counts[file_key] = current_retry_count + 1
+                retry_list.append(item)
+            else:
+                # Exceeded max retries
+                permanently_failed.append(item)
+        
+        if permanently_failed:
+            print(f"⚠️  {len(permanently_failed)} files exceeded max retry attempts and will be skipped")
+        
+        if not retry_list:
+            print(f"✅ No more retries needed (all files either succeeded or exceeded max attempts)")
+            self.failed_downloads = permanently_failed
+            return True
+
+        # Clear failed list before retry
         self.failed_downloads = []
 
         for idx, item in enumerate(retry_list, 1):
+            # Check timeout
+            elapsed_time = time.time() - retry_start_time
+            if elapsed_time > self.retry_timeout:
+                print(f"\n⏱️  Retry timeout ({self.retry_timeout}s) reached, stopping retries")
+                # Re-add remaining files to failed list (including current item being processed)
+                # idx is 1-based, so current item is at index idx-1
+                self.failed_downloads.extend(retry_list[idx-1:])
+                break
+            
             if self.is_stopped:
                 break
 
-            print(f"\n🔄 Retry {idx}/{len(retry_list)}: {item['filename']}")
+            file_key = item['path']
+            retry_attempt = self.retry_counts.get(file_key, 1)
+
+            print(f"\n🔄 Retry [{idx}/{len(retry_list)}] Attempt {retry_attempt}/{self.max_retry_attempts}: {item['filename']}")
 
             if progress_callback:
-                progress_callback(idx, len(retry_list), item['filename'], "retry_download")
+                progress_callback(idx, len(retry_list), item['filename'], f"retry_attempt_{retry_attempt}")
 
             success = self.download_image(item['url'], item['path'], retry=3)
 
             if success:
-                print(f"   ✓ SUCCESS on retry!")
+                print(f"   ✓ SUCCESS on retry attempt {retry_attempt}!")
             else:
-                print(f"   ✗ Still failed after retry")
+                print(f"   ✗ Still failed after retry attempt {retry_attempt}")
+
+        # Add permanently failed files back to the list
+        self.failed_downloads.extend(permanently_failed)
 
         # Check if still have failures
         if self.failed_downloads:
-            print(f"\n⚠️ {len(self.failed_downloads)} downloads still failed after retry")
+            print(f"\n⚠️  {len(self.failed_downloads)} downloads still failed after retry phase")
+            print(f"📄 Failed files:")
+            for item in self.failed_downloads[:5]:  # Show first 5
+                print(f"   - {item['filename']}")
+            if len(self.failed_downloads) > 5:
+                print(f"   ... and {len(self.failed_downloads) - 5} more")
             return False
         else:
             print(f"\n✅ All failed downloads recovered!")
@@ -291,7 +345,7 @@ class ChapterDownloader:
 
             with zipfile.ZipFile(output_cbz_path, 'w', zipfile.ZIP_DEFLATED) as cbz:
                 image_files = sorted([f for f in os.listdir(chapter_path)
-                                      if f.lower().endswith(('.jpg', '.jpeg', '.png', '. webp'))])
+                                      if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
 
                 for img_file in image_files:
                     img_path = os.path.join(chapter_path, img_file)

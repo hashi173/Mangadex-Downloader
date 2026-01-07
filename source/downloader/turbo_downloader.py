@@ -18,13 +18,17 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class TurboDownloader:
-    def __init__(self, max_workers=10, connection_pool_size=20):
+    def __init__(self, max_workers=10, connection_pool_size=20, max_retry_attempts=3, retry_timeout=300):
         """
         Ultra-fast downloader
         max_workers: Number of concurrent downloads (default 10, can go up to 20)
         connection_pool_size: HTTP connection pool size
+        max_retry_attempts: Maximum number of retry attempts per file (default: 3)
+        retry_timeout: Maximum time in seconds for entire retry phase (default: 300 = 5 minutes)
         """
         self.max_workers = max_workers
+        self.max_retry_attempts = max_retry_attempts
+        self.retry_timeout = retry_timeout
 
         # Create optimized session with connection pooling
         self.session = requests.Session()
@@ -58,6 +62,7 @@ class TurboDownloader:
 
         # Error tracking
         self.failed_downloads = []
+        self.retry_counts = {}  # Track retry count per file
 
         # Thread-safe locks
         self.progress_lock = threading.Lock()
@@ -81,6 +86,7 @@ class TurboDownloader:
         self.is_paused = False
         self.is_stopped = False
         self.failed_downloads = []
+        self.retry_counts = {}
         self.total_downloaded = 0
         self.start_time = None
         self.download_speeds = []
@@ -319,23 +325,90 @@ class TurboDownloader:
         return avg_speed / (1024 * 1024)  # Convert to MB/s
 
     def retry_failed_downloads(self, progress_callback=None):
-        """Retry failed downloads"""
+        """Retry failed downloads with max attempts and timeout"""
         if not self.failed_downloads:
             return True
 
-        print(f"\n🔄 Retrying {len(self.failed_downloads)} failed downloads...")
+        retry_start_time = time.time()
+        
+        print(f"\n🔄 Retrying {len(self.failed_downloads)} failed downloads (max {self.max_retry_attempts} attempts)...")
 
-        retry_tasks = [
-            (item['url'], item['path'], idx, len(self.failed_downloads))
-            for idx, item in enumerate(self.failed_downloads, 1)
+        # Filter files that haven't exceeded max retry attempts
+        retry_tasks = []
+        permanently_failed = []
+        
+        for item in self.failed_downloads:
+            file_key = item['path']
+            current_retry_count = self.retry_counts.get(file_key, 0)
+            
+            if current_retry_count < self.max_retry_attempts:
+                # Still within retry limit
+                self.retry_counts[file_key] = current_retry_count + 1
+                retry_tasks.append(item)
+            else:
+                # Exceeded max retries
+                permanently_failed.append(item)
+        
+        if permanently_failed:
+            print(f"⚠️  {len(permanently_failed)} files exceeded max retry attempts and will be skipped")
+        
+        if not retry_tasks:
+            print(f"✅ No more retries needed (all files either succeeded or exceeded max attempts)")
+            self.failed_downloads = permanently_failed
+            return True
+        
+        # Prepare retry tasks for download
+        download_tasks = [
+            (item['url'], item['path'], idx, len(retry_tasks))
+            for idx, item in enumerate(retry_tasks, 1)
         ]
-
+        
+        # Clear failed list before retry
         self.failed_downloads = []
+        
+        print(f"🔄 Attempting retry for {len(retry_tasks)} files...")
+        
+        # Retry with progress and timeout check
+        for idx, (url, path, task_idx, total) in enumerate(download_tasks):
+            # Check timeout
+            elapsed_time = time.time() - retry_start_time
+            if elapsed_time > self.retry_timeout:
+                print(f"\n⏱️  Retry timeout ({self.retry_timeout}s) reached, stopping retries")
+                # Re-add remaining files to failed list (including current item being processed)
+                for remaining_item in retry_tasks[idx:]:
+                    self.failed_downloads.append(remaining_item)
+                break
+            
+            if self.is_stopped:
+                break
+            
+            file_key = path
+            retry_attempt = self.retry_counts.get(file_key, 1)
+            
+            if progress_callback:
+                progress_callback(task_idx, total, os.path.basename(path), 
+                                f"retry_attempt_{retry_attempt}")
+            
+            print(f"🔄 [{task_idx}/{total}] Retry attempt {retry_attempt}/{self.max_retry_attempts}: {os.path.basename(path)}")
+            
+            # Attempt download
+            success = self.download_image_fast(url, path)
+            
+            if success:
+                print(f"   ✓ SUCCESS on retry attempt {retry_attempt}")
+            else:
+                print(f"   ✗ Failed on retry attempt {retry_attempt}")
 
-        successful, failed = self.download_batch_fast(retry_tasks, progress_callback)
+        # Add permanently failed files back to the list
+        self.failed_downloads.extend(permanently_failed)
 
         if self.failed_downloads:
-            print(f"⚠️ {len(self.failed_downloads)} still failed")
+            print(f"\n⚠️  {len(self.failed_downloads)} files still failed after retries")
+            print(f"📄 Failed files:")
+            for item in self.failed_downloads[:5]:  # Show first 5
+                print(f"   - {item['filename']}")
+            if len(self.failed_downloads) > 5:
+                print(f"   ... and {len(self.failed_downloads) - 5} more")
             return False
         else:
             print(f"✅ All retries successful!")
@@ -348,7 +421,7 @@ class TurboDownloader:
 
             with zipfile.ZipFile(output_cbz_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as cbz:
                 image_files = sorted([f for f in os.listdir(chapter_path)
-                                      if f.lower().endswith(('.jpg', '. jpeg', '.png', '.webp'))])
+                                      if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
 
                 for img_file in image_files:
                     img_path = os.path.join(chapter_path, img_file)
